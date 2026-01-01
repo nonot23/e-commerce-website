@@ -20,7 +20,7 @@ public class AutenticateController : ControllerBase
     {
         _userManager = userManager;
         _roleManager = roleManager;
-        _configuration = configuration;
+        _configuration = configuration; // JWT
     }
 
     //Resgister for normal user
@@ -38,7 +38,9 @@ public class AutenticateController : ControllerBase
                 Status = "Error",
                 Message = "User already exists!"
             });
+
         }
+
 
         IdentityUser user = new() // ถ้าไม่มีสร้าง user ใหม่
         {
@@ -59,15 +61,21 @@ public class AutenticateController : ControllerBase
                 Message = "User creation failed! Please check user details and try again."
             });
         }
-        else
+        // สร้าง role "User" ถ้ายังไม่มี
+        if (!await _roleManager.RoleExistsAsync(UserRoles.User))
         {
-            // ถ้าสร้างสำเร็จ
-            return Ok(new Response
-            {
-                Status = "Success",
-                Message = "User created successfully!"
-            });
+            await _roleManager.CreateAsync(new IdentityRole(UserRoles.User));
         }
+        await _userManager.AddToRoleAsync(user, UserRoles.User);
+
+
+
+
+        return Ok(new Response
+        {
+            Status = "Success",
+            Message = "User created successfully!"
+        });
     }
 
     [HttpPost("register-admin")]
@@ -85,6 +93,7 @@ public class AutenticateController : ControllerBase
                 Message = "User already exists!"
             });
         }
+        Console.WriteLine(userExist);
 
         IdentityUser user = new() // ถ้าไม่มีสร้าง user ใหม่
         {
@@ -94,7 +103,6 @@ public class AutenticateController : ControllerBase
         };
 
         var result = await _userManager.CreateAsync(user, model.Password);
-
         // ถ้าสร้าง user ไม่สําเร็จ
         if (!result.Succeeded)
         {
@@ -112,13 +120,19 @@ public class AutenticateController : ControllerBase
         if (!await _roleManager.RoleExistsAsync(UserRoles.User))
             await _roleManager.CreateAsync(new IdentityRole(UserRoles.User));
 
+        // สร้าง role "Admin" ถ้ายังไม่มี
+        if (!await _roleManager.RoleExistsAsync(UserRoles.Admin))
+        {
+            await _roleManager.CreateAsync(new IdentityRole(UserRoles.Admin));
+        }
+        await _userManager.AddToRoleAsync(user, UserRoles.Admin);
+
+
         return Ok(new Response
         {
             Status = "Success",
             Message = "User created successfully!"
         });
-
-        
     }
 
     [HttpPost("Login")]
@@ -127,7 +141,7 @@ public class AutenticateController : ControllerBase
         var user = await _userManager.FindByNameAsync(model.Username);
 
         //ถ้า login สำเร็จ
-        if(user != null && await _userManager.CheckPasswordAsync(user, model.Password!))
+        if (user != null && await _userManager.CheckPasswordAsync(user, model.Password!))
         {
             var userRoles = await _userManager.GetRolesAsync(user);
 
@@ -146,7 +160,7 @@ public class AutenticateController : ControllerBase
 
             return Ok(new
             {
-                token = new JwtSecurityTokenHandler().WriteToken(token), 
+                token = new JwtSecurityTokenHandler().WriteToken(token),
                 expiration = token.ValidTo
             });
         }
@@ -164,11 +178,11 @@ public class AutenticateController : ControllerBase
             issuer: _configuration["JWT:ValidIssuer"], //ออกโดยใคร  
             audience: _configuration["JWT:ValidAudience"], //ออกให้ใคร (ผู้ใช้งาน)
             expires: DateTime.Now.AddHours(3),
-            claims: authClaims, 
+            claims: authClaims,
             signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
         );
         return token;
-        
+
     }
 }
 
