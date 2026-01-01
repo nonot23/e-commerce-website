@@ -1,0 +1,53 @@
+@StoreAPI_HostAddress = http://localhost:5176/api
+
+//Test Connect Database
+GET {{StoreAPI_HostAddress}}/Product/testconnectdb
+Accept: application/json
+
+###
+
+GET  {{StoreAPI_HostAddress}}/Product
+Accept: application/json
+
+###
+
+GET  {{StoreAPI_HostAddress}}/Product/2
+Accept: application/json
+
+###
+
+POST {{StoreAPI_HostAddress}}/Product
+Accept: application/json
+Content-Type: application/json
+
+{
+  "product_id": 5,
+  "category_id": 1,
+  "product_name": "iPhone 13",
+  "unit_price": 22222,
+  "product_picture": "https://www.mxphone.com/wp-content/uploads/2021/04/41117-79579-210401-iPhone12ProMax-xl-1200x675.jpg",
+  "unit_in_stock": 10,
+  "created_date": "2021-11-22T00:00:00",
+  "modified_date": "2021-11-22T00:00:00"
+}
+
+###
+PUT {{StoreAPI_HostAddress}}/Product/5
+Accept: application/json
+Content-Type: application/json
+
+{
+  "product_id": 5,
+  "category_id": 1,
+  "product_name": "iPhone 16",
+  "unit_price": 20900,
+  "product_picture": "https://www.mxphone.com/wp-content/uploads/2021/04/41117-79579-210401-iPhone12ProMax-xl-1200x675.jpg",
+  "unit_in_stock": 12,
+  "created_date": "2021-11-22T00:00:00",
+  "modified_date": "2021-11-22T00:00:00"
+}
+
+###
+DELETE {{StoreAPI_HostAddress}}/Product/5
+Accept: application/json
+Content-Type: application/json

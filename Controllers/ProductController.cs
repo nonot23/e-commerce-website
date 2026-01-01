@@ -1,0 +1,134 @@
+using System.Diagnostics.Tracing;
+using Microsoft.AspNetCore.Mvc;
+using StoreAPI.Data;
+using StoreAPI.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace StoreAPI.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class ProductController : ControllerBase
+{
+    //สร้าง Object ของ ApplicationContext
+    private readonly ApplicationDbContext _context;
+
+    // IWebHostEnvironment ใช้สําหรับจัดการไฟล์และโฟลเดอร์
+    // ContentRootPath คือ โฟลเดอร์ที่เก็บไฟล์ uploads
+    // WebRootPath คือ เส้นทางถึงโฟลเดอร์ wwwroot เมื่อทำ UI ด้วย
+    private readonly IWebHostEnvironment _env;
+
+    public ProductController(ApplicationDbContext context, IWebHostEnvironment env)
+    {
+        _context = context;
+        _env = env;
+    }
+
+    // GET: /api/Product/testconnectdb
+    [HttpGet("testconnectdb")]
+    public void Testconnectdb()
+    {
+        //ถ้าเชื่อมต่อสำเร็จ จะแสดงข้อความ Success
+        if (_context.Database.CanConnect())
+        {
+            Response.WriteAsync("Success Connect to Database");
+        }
+        else
+        {
+            Response.WriteAsync("Fail Connect to Database");
+        }
+    }
+    // GET: /api/Product
+    [HttpGet]
+    public ActionResult<product> GetProducts()
+    {
+        //LINQ สำหรับดึงข้อมุล
+        //var products =_context.products.ToList();
+        // มีเงื่อนไข
+        //var products = _context.products.Where(p => p.unit_price > 40000).ToList();
+        // join ข้อมูล
+        var products = _context.products
+            .Join(
+                _context.categories,
+                p => p.category_id,
+                c => c.category_id,
+                (p, c) => new
+                {
+                    p.product_id,
+                    p.product_name,
+                    p.unit_price,
+                    p.unit_in_stock,
+                    c.category_name
+                }
+            ).ToList();
+        return Ok(products);
+    }
+
+    //Get: /api/Product/{id}
+    [HttpGet("{id}")]
+    public async Task<ActionResult<product>> GetProduct(int id)
+    {
+        var product = await _context.products.FindAsync(id);
+        if (product == null) return NotFound();
+        return Ok(product);
+    }
+
+    // POST: /api/Product
+    [HttpPost]
+    public async Task<ActionResult<product>> PostProduct([FromForm] product product, IFormFile? image)
+    {
+        // 1. หา category ที่มีอยู่จาก category_id
+        var existingCategory = await _context.categories
+            .FindAsync(product.category_id);
+
+        if (existingCategory == null)
+        {
+            return BadRequest($"Category ID {product.category_id} not found");
+        }
+
+        // 2. ตั้งค่า category ให้เป็น object ที่หาเจอ (แทนที่จะสร้างใหม่)
+        product.category = existingCategory;
+
+        //ตรวจสอบว่ามีการอัพโหลดรูปภาพหรือไม่
+        if (image != null)
+        {
+            // Guid ใช้สําหรับสร้างชื่อไฟล์ที่ไม่ซ้ํากัน
+            string fileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
+            string uploadFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
+            if (!Directory.Exists(uploadFolder))
+            {
+                Directory.CreateDirectory(uploadFolder);
+            }
+
+            using (var fileStream = new FileStream(Path.Combine(uploadFolder, fileName), FileMode.Create))
+            {
+                await image.CopyToAsync(fileStream);
+            }
+            product.product_picture = fileName;
+        }
+        _context.products.Add(product);
+        await _context.SaveChangesAsync();
+        return Ok(product);
+    }
+
+    // PUT: /api/Product/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutProduct(int id, product product)
+    {
+        if (id != product.product_id) return BadRequest();
+        _context.Entry(product).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+        return Ok(product);
+    }
+
+    //DELETE: /api/Product/{id}
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteProduct(int id)
+    {
+        var product = await _context.products.FindAsync(id);
+        if (product == null) return NotFound();
+        _context.products.Remove(product);
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+}
