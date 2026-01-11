@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StoreAPI.Data;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +15,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
-    
+
 //For Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -23,8 +24,8 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
 //Adding Authentication
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;;
-    options.DefaultChallengeScheme =  JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme; ;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 //Adding JWT Bearer
@@ -34,12 +35,12 @@ builder.Services.AddAuthentication(options =>
     options.RequireHttpsMetadata = false; // ถ้า dev mode อาจปิดได้
     options.TokenValidationParameters = new TokenValidationParameters
     {
-		ValidateIssuer = true,
-		ValidateAudience = true,
+        ValidateIssuer = true,
+        ValidateAudience = true,
         ValidateLifetime = true,
-		ValidateIssuerSigningKey = true,
-		ValidAudiences = builder.Configuration.GetSection("JWT:ValidAudiences").Get<string[]>(),
-		ValidIssuers = builder.Configuration.GetSection("JWT:ValidIssuers").Get<string[]>(),
+        ValidateIssuerSigningKey = true,
+        ValidAudience = builder.Configuration["JWT:ValidAudience"],
+        ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]!))
     };
@@ -48,20 +49,38 @@ builder.Services.AddAuthentication(options =>
 
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Store API", Version = "v1" });
 
+    // ตั้งค่า JWT Security
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "พิมพ์ Bearer ตามด้วยช่องว่างและ JWT token ในช่องข้อความต"
+    });
+
+    options.AddSecurityRequirement(document => new() { [new OpenApiSecuritySchemeReference("Bearer", document)] = [] });
+});
+    
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(option => 
+    {
+        option.SwaggerEndpoint("/swagger/v1/swagger.json", "Store API V1");
+        option.RoutePrefix = string.Empty; // ตั้งค่าให้หน้า Swagger UI เป็นหน้าแรก
+    });
 }
+
 
 app.UseHttpsRedirection();
 
@@ -69,5 +88,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 app.Run();

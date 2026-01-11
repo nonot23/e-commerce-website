@@ -1,5 +1,4 @@
 @AuthAPI_HostAddress = http://localhost:5176/api/Autenticate
-
 POST {{AuthAPI_HostAddress}}/register
 Content-Type: application/json
 
@@ -26,6 +25,8 @@ POST {{AuthAPI_HostAddress}}/login
 Content-Type: application/json
 
 {
-    "username": "testuser",
+    "username": "testuser"
     "password": "@Nonot2323"
 }
+
+###

@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using StoreAPI.Data;
 using StoreAPI.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace StoreAPI.Controllers;
 
+[Authorize] //Login แล้วถึงเข้าได้
 [ApiController]
 [Route("api/[controller]")]
 public class ProductController : ControllerBase
@@ -25,6 +27,7 @@ public class ProductController : ControllerBase
     }
 
     // GET: /api/Product/testconnectdb
+    [AllowAnonymous] //ไม่ต้อง Login ก็สามารถเข้าได้
     [HttpGet("testconnectdb")]
     public void Testconnectdb()
     {
@@ -39,6 +42,7 @@ public class ProductController : ControllerBase
         }
     }
     // GET: /api/Product
+
     [HttpGet]
     public ActionResult<product> GetProducts()
     {
@@ -65,36 +69,33 @@ public class ProductController : ControllerBase
     }
 
     //Get: /api/Product/{id}
-    [HttpGet("{id}")]
-    public async Task<ActionResult<product>> GetProduct(int id)
-    {
-        var product = await _context.products.FindAsync(id);
-        if (product == null) return NotFound();
-        return Ok(product);
-    }
+        [Authorize]
+        [HttpGet("{id}")]
+        public async Task<ActionResult<product>> GetProduct(int id)
+        {
+            var product = await _context.products.FindAsync(id);
+            if (product == null) return NotFound();
+            return Ok(product);
+        }
 
     // POST: /api/Product
     [HttpPost]
     public async Task<ActionResult<product>> PostProduct([FromForm] product product, IFormFile? image)
     {
-        // 1. หา category ที่มีอยู่จาก category_id
-        var existingCategory = await _context.categories
-            .FindAsync(product.category_id);
+                // เพิ่มข้อมูลลงในตาราง Products
+        _context.products.Add(product);
 
-        if (existingCategory == null)
-        {
-            return BadRequest($"Category ID {product.category_id} not found");
-        }
-
-        // 2. ตั้งค่า category ให้เป็น object ที่หาเจอ (แทนที่จะสร้างใหม่)
-        product.category = existingCategory;
-
-        //ตรวจสอบว่ามีการอัพโหลดรูปภาพหรือไม่
-        if (image != null)
-        {
-            // Guid ใช้สําหรับสร้างชื่อไฟล์ที่ไม่ซ้ํากัน
+        // ตรวจสอบว่ามีการอัพโหลดไฟล์รูปภาพหรือไม่
+        if(image != null){
+            // กำหนดชื่อไฟล์รูปภาพใหม่
             string fileName = Guid.NewGuid().ToString() + Path.GetExtension(image.FileName);
-            string uploadFolder = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads");
+
+            // บันทึกไฟล์รูปภาพ
+            // string uploadFolder = Path.Combine(_env.ContentRootPath, "uploads");
+
+            string uploadFolder = Path.Combine(_env.WebRootPath!, "uploads");
+
+            // ตรวจสอบว่าโฟลเดอร์ uploads มีหรือไม่
             if (!Directory.Exists(uploadFolder))
             {
                 Directory.CreateDirectory(uploadFolder);
@@ -104,11 +105,17 @@ public class ProductController : ControllerBase
             {
                 await image.CopyToAsync(fileStream);
             }
+
+            // บันทึกชื่อไฟล์รูปภาพลงในฐานข้อมูล
             product.product_picture = fileName;
         }
-        _context.products.Add(product);
-        await _context.SaveChangesAsync();
+
+        _context.SaveChanges();
+
+        // ส่งข้อมูลกลับไปให้ผู้ใช้
         return Ok(product);
+
+
     }
 
     // PUT: /api/Product/{id}
