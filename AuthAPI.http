@@ -5,7 +5,7 @@ Content-Type: application/json
 {
     "username": "testuser",
     "email": "giga222@gmail.com",
-    "password": "@Nonot2323"
+    "password": "@"
 }
 
 ###
@@ -15,8 +15,8 @@ Content-Type: application/json
 
 {
     "username": "testadmin",
-    "email": "giga2323@gmail.com",
-    "password": "@Nattapol2323"
+    "email": "giga@gmail.com",
+    "password": "@"
 }
 
 ###
@@ -26,7 +26,7 @@ Content-Type: application/json
 
 {
     "username": "testuser"
-    "password": "@Nonot2323"
+    "password": "@"
 }
 
 ###
